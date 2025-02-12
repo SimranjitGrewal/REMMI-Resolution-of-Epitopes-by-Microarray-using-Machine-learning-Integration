@@ -1,5 +1,5 @@
 
-![alt text](https://github.com/SimranjitGrewal/REMMI-Resolution-of-Epitopes-by-Microarray-using-Machine-learning-Integration/edit/main/Graphical abstract .png
+![alt text](https://github.com/SimranjitGrewal/REMMI-Resolution-of-Epitopes-by-Microarray-using-Machine-learning-Integration/edit/main/Graphical abstract .png?raw=true)
 
 Welcome to R.E.M.M.M.I. or Region-focused Epitope Mapping using Microarrays and Machine-learning Integration
 
