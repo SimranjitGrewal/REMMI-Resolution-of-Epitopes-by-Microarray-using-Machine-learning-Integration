@@ -22,3 +22,14 @@ The design of mutated peptide panels for validation should be performed based up
 
 For S4PRED predicted secondary structures, all values are presented as a sum up to 1. Values 'H','C','B' represent alpha-helix, coil, and beta-sheet respectively
 https://github.com/psipred/s4pred
+- To use S4PRED files, ensure that probabilities are listed per amino acid (including spacer amino acids such as "GSGSG" in the example files) in the order Coil, Helix, Sheet in columns D,E,F in CSV or Excel with no header
+- In our example, the frame shifted by values of 1 for all arrays except NF54, for which the array shifted by 2
+  - to ensure there are an equal number of datapoints for secondary structure as all other features, these files must be loaded in the same order as the peptide array data was uploaded.
+  - If struggling to apply S4PRED, either remove secondary structure associated features, or add them manually and begin at phase 2 with a complete dataset with features
+ 
+to add additionaly features:
+- code the calculations and add them to phase 1 generation step and append it to "optimized_dataset"
+or
+- Manually add feature(s) to output from phase 1 generation step
+and
+- add the respective feature(s) to "initialize features" function
