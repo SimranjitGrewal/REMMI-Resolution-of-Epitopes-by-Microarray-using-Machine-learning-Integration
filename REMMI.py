@@ -10,22 +10,26 @@ print("a minimum requirement to employ this program is an excel file or CSV file
 print("Column 1 must be labelled 'Peptide' in the first row and below it should be peptide sequences")
 print("Column 2 must be labelled 'Raw Median' in the first row and below it should be binding scores corresponding to same-row sequence")
 print("Before running, generate per-amino acid S4PRED for the concattenated sequence of all peptides in the array for each protein")
-print("S4PRED function uses overlap values to generate an equal number of variables corresponding to total peptides")
+print("S4PRED function uses overlap valuens to generate an equal number of variables corresponding to total peptides")
+print("please consult the github at 'https://github.com/SimranjitGrewal/REMMI-Resolution-of-Epitopes-by-Microarray-using-Machine-learning-Integration' if you have any concerns")
+print("in the event of any questions or concerns not addressed in the github, please email 'sgrewal@ualberta.ca' or 'yanow@ualberta.ca")
+print("Code was run in Python 3.9")
 ####IMPORTS###############################################################################################################################
 from ast import List
+
 import pandas as pd
 from itertools import product
 #from sklearn_genetic.space import Continuous, Categorical, Integer
 #from sklearn_genetic.plots import plot_fitness_evolution, plot_search_space
 import numpy as np
 import matplotlib.pyplot as plt
-import sklearn
 from sklearn import tree
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import statistics
 from openpyxl import Workbook
+import sklearn
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.ensemble import RandomForestRegressor
 import pickle
@@ -40,8 +44,9 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LinearRegression
 import graphviz
 import dtreeviz
-
+from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_validate
 from sklearn.model_selection import RepeatedKFold
 
 from sklearn.neural_network import MLPRegressor
@@ -135,7 +140,8 @@ def calculate_charge_minus(optimized_dataset): #total negative residue count
     optimized_dataset['negative_charge_At_7ph']=charge_list
     return optimized_dataset #charge negatives 1
 
-def calculate_aminoacid_counts(optimized_dataset,peptide_skip): #simple function counts the occurances of each amino acid and glues them into a list and adds that back to the datagrame
+def calculate_aminoacid_counts(optimized_dataset,peptide_skip): #simple function counts the occurances of each amino acid and glues them into a list and adds that back to the dataframe
+    #currently this version can be modified to swap between skipping the first few amino acids or not depending on whether the peptide trim/peptide skip hyperparameter is to be applied to the dataframe
     alanine_count_list=[]
     valine_count_list=[]
     arginine_count_list=[]
@@ -179,7 +185,8 @@ def calculate_aminoacid_counts(optimized_dataset,peptide_skip): #simple function
      phenylalanine_count=0
      tyrosine_count=0
      tryptophan_count=0
-     for b in range(len(optimized_dataset.iloc[a,optimized_dataset.columns.get_loc('Peptide')])-peptide_skip): #b is the index of the amino acid in row 'a' peptide
+     for b in range(len(optimized_dataset.iloc[a,optimized_dataset.columns.get_loc('Peptide')])): #Swap if applying peptide skip or not
+     #for b in range(len(optimized_dataset.iloc[a,optimized_dataset.columns.get_loc('Peptide')])-peptide_skip): #b is the index of the amino acid in row 'a' peptide
       if optimized_dataset.iloc[a,optimized_dataset.columns.get_loc('Peptide')][b]=='A':
           alanine_count= alanine_count + 1
       elif optimized_dataset.iloc[a,optimized_dataset.columns.get_loc('Peptide')][b]=='G':
@@ -327,7 +334,7 @@ def calculate_cohort_charge(optimized_dataset):
     return optimized_dataset #cohort charge 
 
 def insert_secondary_structure_data(peptide_array_df): #uses the S4PRED output and sticks it onto the DF, may need adjustments if formatting differs signficantly
-
+    #creates probability for each residue to be coil, helix, or beta sheet, this needs to formatted appropriately before applying code, columns D,E,F need to contain probabilities for each residue position without a header in the aforementioned order
     print("in the order you loaded the arrays, you need to load the secondaries")
     array_count=int(input("how many peptide secondary structure arrays are you loading? : "))
 
@@ -338,9 +345,9 @@ def insert_secondary_structure_data(peptide_array_df): #uses the S4PRED output a
     for a in range(array_count):#traverse alla rrays and we append individual values at end
       print("Please enter the path of the ", a , "th peptide array  of interest: ")
       file_path=input(": ")
-      frame_shift_array=input("please enter the frame shift of this peptide array--for example if the array shifts by 1 residue then enter 1 , etc ")
+      frame_shift_array=input("please enter the frame shift of this peptide array--for example if the array shifts by 1 residue then enter 1 , etc ") #this is necessary to ensure that the column containing secondary structures is of equal length to the whole dataframe
       file_path= file_path.replace('"',"")
-      peptide_array_df=pd.read_excel(file_path,usecols='D,E,F',header=None) #THIS WILL PULL THE COLUMNS FOR THE SECONDARY STRUCTURE BASED ON HOW I FORMATTED THE FILES
+      peptide_array_df=pd.read_excel(file_path,usecols='D,E,F',header=None) #THIS WILL PULL THE COLUMNS FOR THE SECONDARY STRUCTURE BASED ON
      
       #excel_of_weights_model_10 = pd.ExcelWriter(r'C:\Users\sgrew\Desktop\applepie.xlsx')
       #peptide_array_df.to_excel(excel_of_weights_model_10)
@@ -450,8 +457,15 @@ def set_data(dataset,features): ################################################
 
 def machine_learning(X,y,frame_size): ################################################################################################################### single instance of model building
 
+    #Parameters for hyperparameter selection
+    params = {'model__max_depth' : [2,3,4,5,6,7,8,9],
+              'model__criterion' : ['squared_error'],
+              'model__min_samples_leaf' : [2,3,4,5],
+              'model__min_samples_split' : [2,3,4,5]}
+
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
-    print(X_test)
+    #print(X_test)
     #input("a")
     #input("a")
     #input("a")
@@ -460,7 +474,7 @@ def machine_learning(X,y,frame_size): ##########################################
     #input("a")
     #input("a")
     #model = RandomForestRegressor(max_depth=frame_size+1,n_estimators=100,bootstrap=True) #boot strap falses includes whole data set
-    model = DecisionTreeRegressor(max_depth=frame_size+1,criterion='squared_error')
+    model = DecisionTreeRegressor(max_depth=frame_size+1,criterion='squared_error',min_samples_leaf=2,min_samples_split=5)
     #print("start")
     #model  = MLPRegressor(hidden_layer_sizes=(100), max_iter=1000).fit(X_train, y_train)
     #print("done")
@@ -473,25 +487,43 @@ def machine_learning(X,y,frame_size): ##########################################
     #print(len(model.coefs_),"length total")
     #print(len(model.coefs_[0]),"length 0")
     #print(model.coefs_[0])
-    ###############################################model = model.fit(X_train, y_train)
-    model = model.fit(X,y)
+ 
+    model = model.fit(X_train,y_train)
 
-    ##temporary
-    peptide_array_data=load_pep() #this is commented out until I finish looping the pooping
+    ############################################### temporary hyperparameter tuning
+    # print(model.score(X_train,y_train))
+    # print(model.score(X_test,y_test))
+    # print(model.get_params())
+    # pipe = Pipeline([('model', model)])
+    # grid = GridSearchCV(pipe,params,cv=5,n_jobs = -1)
+    # print("start param search")
+    # grid.fit(X_train,y_train)
+    # print("end param search")
+    # param_dict=grid.best_params_
+    # param_list=list(grid.best_params_.keys())
+    # for a in range(len(param_list)):
+    #     param_dict[param_list[a].replace("model__","")]= param_dict.pop(param_list[a])
+    # model= DecisionTreeRegressor(**param_dict)
+    # model = model.fit(X_train,y_train)
+    # input()
+    # print(grid.best_params_)
 
-    y_test=peptide_array_data["Raw Median"]
-    features=initialize_features()
-    X_test=peptide_array_data[features]
-    ## temporary above
+
+    #######################################temporary for testing
+    # # # peptide_array_data=load_pep() #this is commented out until I finish looping 
+
+    # # # y_test=peptide_array_data["Raw Median"]
+    # # # features=initialize_features()
+    # # # X_test=peptide_array_data[features]
+    # # # ## temporary above
 
 
-    X=peptide_array_data[features]
+    # # # X=peptide_array_data[features]
     predictions = model.predict(X_test)
     ##############################################predictions = model.predict(X_test)
 
-    print(sklearn.tree.export_text(model))
+    #print(sklearn.tree.export_text(model))
 
-    input("")
     #print(predictions)
     #input()
     print("mean absolute error is: ",mean_absolute_error(y_test, predictions))
@@ -515,10 +547,10 @@ def machine_learning_evaluation(X,y,frame_size): ######## broad machine learning
     smallest_squared_error=10000000
     biggest_r2=-10000000
     iteration=0
-    while_looper_variable=input("would you like to test multiple instances for hyperparameter optimization? O for yes, anything else for no")
+    while_looper_variable=input("would you like to test multiple instances for gridsearch testing? O for yes, any other number else for no (only use if running from phase 1)")
     once_over_variable=1
 
-    while int(while_looper_variable)==0 or once_over_variable==1:
+    while int(float(while_looper_variable))==0 or once_over_variable==1:
 
      #while_looper_variable=input("loop? 0 for yes")
 
@@ -914,13 +946,13 @@ def phase_1_build_a_array():
 
 def phase_2_build_model_1():
 
-    peptide_array_data=load_pep() #this is commented out until I finish looping the pooping
+    peptide_array_data=load_pep() #this is commented out until I finish looping 
 
     y=peptide_array_data["Raw Median"]
 
     features=initialize_features()
+
     frame_size=int(input("How large is your desired frame? "))
-    input("")
 
 
 
